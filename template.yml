@@ -1,0 +1,86 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: AWS Serverless Spring Boot 2 API - com.explorer.ledger.api::commodity-ledger-api
+Globals:
+  Api:
+    EndpointConfiguration: REGIONAL
+
+Resources:
+   CommodityLedgerApi:
+       Type: AWS::Serverless::Api
+       Properties:
+         Name: 'commodity-ledger-api'
+         StageName: staging
+         BinaryMediaTypes:
+            - 'multipart/form-data'
+            - 'application/octet-stream'
+         Cors:
+           AllowMethods: "'PUT, POST, GET, OPTIONS, DELETE'"
+           AllowHeaders: "'X-Forwarded-For,Content-Type,X-Amz-Date,Authorization,X-Api-Key,x-requested-with'"
+           AllowOrigin: "'*'"
+         Auth:
+           AddDefaultAuthorizerToCorsPreflight: false
+           DefaultAuthorizer: commodityLedgerAuthorizer
+           Authorizers:
+             commodityLedgerAuthorizer:
+               UserPoolArn: arn:aws:cognito-idp:eu-west-2:253602612981:userpool/eu-west-2_LBV1tannA
+   LamdaInternetAccessSG:
+     Type: AWS::EC2::SecurityGroup
+     Properties:
+         GroupDescription: Allow http to outside world
+         VpcId: vpc-ae9fb3c6
+         SecurityGroupEgress:
+         - IpProtocol: tcp
+           FromPort: 443
+           ToPort: 443
+           CidrIp: 0.0.0.0/0
+   CommodityLedgerApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: com.explorer.ledger.api.StreamLambdaHandler::handleRequest
+      Runtime: java8
+      CodeUri: .
+      MemorySize: 1024
+      VpcConfig:
+        SecurityGroupIds:
+          - sg-0ca7db0ec4949f5b9
+          - !GetAtt 
+             - LamdaInternetAccessSG
+             - GroupId
+        SubnetIds:
+          - subnet-012d4735823902da8
+          - subnet-00e588be2052a9593
+          - subnet-0cf25f61ee113d3f7
+      Policies:
+         - AWSXRayDaemonWriteAccess
+         - AWSLambdaBasicExecutionRole
+         - Statement:
+           - Sid: S3ListCryptoPolicy
+             Effect: Allow
+             Action:
+                - s3:ListBucket
+             Resource: 'arn:aws:s3:::simple-network-crypto-bucket-a'
+           - Sid: S3GetCryptoPolicy
+             Effect: Allow
+             Action:
+                - s3:GetObject
+             Resource: 'arn:aws:s3:::simple-network-crypto-bucket-a/*'
+           - Sid: CognitoPolicy
+             Effect: Allow
+             Action:
+                -  cognito-idp:AdminListGroupsForUser
+                -  cognito-idp:AdminGetUser
+             Resource: 'arn:aws:cognito-idp:eu-west-2:253602612981:userpool/eu-west-2_LBV1tannA'
+      Timeout: 300
+      Events:
+        ProxyApiResource:
+          Type: Api
+          Properties:
+            Path: /{proxy+}
+            Method: any
+            RestApiId: !Ref CommodityLedgerApiOutputs:
+  CommodityLedgerApi:
+    Description: URL for application
+    Value: !Sub 'https://${CommodityLedgerApi}.execute-api.${AWS::Region}.amazonaws.com/staging/ping'
+    Export:
+      Name: CommodityLedgerApi
