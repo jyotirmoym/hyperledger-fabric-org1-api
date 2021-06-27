@@ -23,12 +23,12 @@ Resources:
            DefaultAuthorizer: commodityLedgerAuthorizer
            Authorizers:
              commodityLedgerAuthorizer:
-               UserPoolArn: arn:aws:cognito-idp:eu-west-2:253602612981:userpool/eu-west-2_LBV1tannA
+               UserPoolArn: arn:aws:cognito-idp:eu-west-2:*********:userpool/eu-west-2_LBV1tannA
    LamdaInternetAccessSG:
      Type: AWS::EC2::SecurityGroup
      Properties:
          GroupDescription: Allow http to outside world
-         VpcId: vpc-ae9fb3c6
+         VpcId: vpc-*******
          SecurityGroupEgress:
          - IpProtocol: tcp
            FromPort: 443
@@ -70,7 +70,7 @@ Resources:
              Action:
                 -  cognito-idp:AdminListGroupsForUser
                 -  cognito-idp:AdminGetUser
-             Resource: 'arn:aws:cognito-idp:eu-west-2:253602612981:userpool/eu-west-2_LBV1tannA'
+             Resource: 'arn:aws:cognito-idp:eu-west-2:**********:userpool/eu-west-2_LBV1tannA'
       Timeout: 300
       Events:
         ProxyApiResource:
@@ -78,7 +78,8 @@ Resources:
           Properties:
             Path: /{proxy+}
             Method: any
-            RestApiId: !Ref CommodityLedgerApiOutputs:
+            RestApiId: !Ref CommodityLedgerApi
+Outputs:
   CommodityLedgerApi:
     Description: URL for application
     Value: !Sub 'https://${CommodityLedgerApi}.execute-api.${AWS::Region}.amazonaws.com/staging/ping'
